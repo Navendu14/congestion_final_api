@@ -9,18 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 with open("congestion_model.pkl", "rb") as f:
     model = pickle.load(f)
 
-# List all expected input features in order
-input_features = [
-    'is_holiday', 'is_weekend', 'Friday', 'Monday', 'Saturday', 'Sunday',
-    'Thursday', 'Tuesday', 'Wednesday',
-    'Cloudy', 'Rainy', 'Sunny', 'Windy',
-    '10_00_10_30', '10_30_11_00', '11_00_11_30', '11_30_12_00',
-    '12_00_12_30', '12_30_13_00', '13_00_13_30', '13_30_14_00',
-    '14_00_14_30', '14_30_15_00', '15_00_15_30', '15_30_16_00',
-    '16_00_16_30', '16_30_17_00', '17_00_17_30', '17_30_18_00',
-    '18_00_18_30', '18_30_19_00', '19_00_19_30', '19_30_20_00',
-    '8_00_8_30', '8_30_9_00', '9_00_9_30', '9_30_10_00'
-]
+
 
 
 # Input schema for FastAPI
@@ -86,18 +75,20 @@ def read_root():
 # Prediction route
 @app.post("/predict")
 def predict_congestion(data: InputData):
-    # Convert input to dictionary and fix time slot keys
-    input_dict = data.dict()
+    input_features = np.array([[
+        data.is_holiday, data.is_weekend, data.Friday, data.Monday, data.Saturday, data.Sunday, data.Thursday,
+        data.Tuesday, data.Wednesday, data.Cloudy,
+        data.Rainy, data.Sunny, data.Windy, data._10_00_10_30, data._10_30_11_00, data._11_00_11_30, data._11_30_12_00,
+        data._12_00_12_30, data._12_30_13_00, data._13_00_13_30, data._13_30_14_00, data._14_00_14_30,
+        data._14_30_15_00,
+        data._15_00_15_30, data._15_30_16_00, data._16_00_16_30, data._16_30_17_00, data._17_00_17_30,
+        data._17_30_18_00,
+        data._18_00_18_30, data._18_30_19_00, data._19_00_19_30, data._19_30_20_00, data._8_00_8_30, data._8_30_9_00,
+        data._9_00_9_30, data._9_30_10_00
+    ]])
 
-    # Fix keys to match original feature names
-    formatted_input = {
-        k.replace("_", ":", 1).replace("_", "-") if k[0] == "_" else k.replace("_", "-") for k in input_dict
-    }
+    # Predict
+    prediction = model.predict(input_features)
+    return {"congestion_percentage": float(prediction[0])}
 
-    # Align features in expected order
-    values = [input_dict.get(feat, 0) for feat in input_features]
 
-    # Convert to numpy array and predict
-    prediction = model.predict([values])[0]
-
-    return {"congestion_percentage": round(prediction, 2)}
